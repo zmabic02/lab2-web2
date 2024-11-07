@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XSS & CSRF Demo</title>
+    <script>
+        let csrfToken = null;
+
+        document.addEventListener("DOMContentLoaded", async function() {
+            let status = null;
+            await fetch('/protection-status')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok " + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                status = data;
+            })
+            .catch(error => {
+                console.error('Greška u dohvaćanju podataka: ', error);
+            });
+            console.log("Status: " + status);
+            document.getElementById('xss-status').innerHTML = status.xss_protected ? "Uključena" : "Isključena";
+            document.getElementById('csrf-status').innerHTML = status.csrf_protected ? "Uključena" : "Isključena";
+        });
+
+        async function fetchCsrfToken() {
+            try {
+                const response = await fetch('/get-csrf-token');
+                const data = await response.json();
+                csrfToken = data.csrfToken;
+            } catch (error) {
+                console.error('Greška u dohvaćanju csrf tokena: ', error);
+            }
+        }
+
+        async function toggleXssProtection() {
+            try {
+                const response = await fetch('/toggle-xss-protection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken || ''
+                    }
+                });
+                const data = await response.json();
+                document.getElementById('xss-status').textContent = 
+                    data.xssProtection ? "Uključena" : "Isključena";
+            } catch (error) {
+                console.error('Greška u postavljanju XSS zaštite:', error);
+            }
+        }
+
+        async function toggleCsrfProtection() {
+            try {
+                const response = await fetch('/toggle-csrf-protection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken || ''
+                    }
+                });
+                const data = await response.json();
+                document.getElementById('csrf-status').textContent = 
+                    data.csrfProtection ? "Uključena" : "Isključena";
+                if (data.csrfProtection) {
+                    await fetchCsrfToken();
+                } else {
+                    csrfToken = null;
+                }
+            } catch (error) {
+                console.error('Greška u postavljanju CSRF zaštite:', error);
+            }
+        }
+
+        window.onload = async function() {
+            await fetchCsrfToken();
+        }
+    </script>
+</head>
+<body>
+    <h1>Demonstracija ranjivosti XSS i CSRF - Zvonimir Mabić</h1>
+    <h2>U prvom dijelu je demonstracija ranjivosti XSS (Cross-Site Scripting)</h2>
+    <p>XSS zaštita je trenutno: <strong id="xss-status"></strong></p>
+    <button onclick="toggleXssProtection()">Promijeni XSS zaštitu</button>
+    <p>Unesite tekst i kliknite na "Submit" nakon čega će se tekst prikazati u novom prozoru.</p>
+    <p>Ako je XSS zaštita uključena, uneseni JS kod se neće izvršiti, a ako je uključena izvršit će se.</p>
+    <p>Tipičan primjer testiranja ¸bio bi unos: &lt;script&gt;alert("TEST")&lt;/script&gt;</script></p>
+    <form action="/echo" method="get">
+        <input type="text" id="input" name="input" required><br><br>
+        <button type="submit">Submit</button>
+    </form>
+    <p>Zaštita je osigurana filtriranjem nedozvoljenih znakova.</p>
+    <br/>
+    <h2>U drugom dijelu je demonstracija ranjivosti CSRF (Cross Site Request Forgery)</h2>
+    <p>CSRF zaštita je trenutno: <strong id="csrf-status"></strong></p>
+    <button onclick="toggleCsrfProtection()">Promijeni CSRF zaštitu</button>
+    <p>Recimo da korisnik dobije link na <a href="/attack" target="_blank">sumnjivu stranicu</a>.</p>
+    <p>U toj stranici može se nalaziti nevidljiva slika u kojoj je sadržan JS kod koji prilikom izvođenja upravlja XSS zaštitom.</p>
+    <p>Ako je CSRF zaštita uključena, taj kod se neće moći pokrenuti, a ako je uključena, promjenit će se status XSS zaštite.</p>
+    <p>Dakle, ako zaštita nije uključena, povratkom na ovu strancu može se vidjeti da je promjenjen status XSS zaštite i to se još može testirati.</p>
+    <p>Zaštita je osigurana korištenjem CSRF tokena.</p>
+</body>
+</html>

